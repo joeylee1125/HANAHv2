@@ -151,16 +151,17 @@ def main():
 
     years = ['2016', '2017', '2018']
 
-    start = '2018-06-22'
-    end = '2018-06-30'
+    start = '2018-07-03'
+    end = '2018-07-16'
     date_start = datetime.datetime.strptime(start, '%Y-%m-%d')
     date_end = datetime.datetime.strptime(end, '%Y-%m-%d')
     while date_start < date_end:
-        print(f"Download case uploaded by =================={date_start}=====================")
+        print(f"Download case uploaded by "
+              f"=================={date_start.year}-{date_start.month}-{date_start.day}=====================")
         for year in years:
             upload_date = f'{date_start.year}' + '-' + f'{date_start.month:02d}' + '-' + f'{date_start.day:02d}'
             download_case_list_by_upload_date(year, upload_date)
-        download_new_testcases()
+        #download_new_testcases()
         date_start += datetime.timedelta(days=1)
 
 
