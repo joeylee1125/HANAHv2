@@ -3,8 +3,9 @@
 import DBOperation
 
 import StaticUtils
-import VerdictAnalyserv3
+import VerdictAnalyser
 
+import time
 
 def update_case_table(db_conn, case):
     fields_list = ['court_level', 'region', 'prosecutor', 'court_procedure', 'verdict']
@@ -32,8 +33,8 @@ def update_defendant_table(db_conn, case):
         #print(fields_list, data_list)
         defendant_id = case['doc_id'] + '{:0>2}'.format(index)
         #print(defendant_id, defendant['name'])
-        defendant_doc_id = db_conn.get(StaticUtils.defendant_table, 'doc_id', 'doc_id=\'{}\''.format(case['doc_id']))
-        if not defendant_doc_id:
+        db_defendant_id = db_conn.get(StaticUtils.defendant_table, 'defendant_id', f'defendant_id=\'{defendant_id}\'')
+        if not db_defendant_id:
             add_defendant(db_conn, case['doc_id'], defendant['name'], defendant_id)
         db_conn.multi_update(StaticUtils.defendant_table,
                              fields_list,
@@ -53,7 +54,9 @@ def add_defendant(db_conn, case_doc_id, case_defendant_name, defendant_id):
 
 def analyse_case(db_conn):
     case_list_out = list()
-    case_list = db_conn.get(StaticUtils.case_table, 'name, doc_id, court, YEAR(DATE), content', 'YEAR(DATE)=2015 and analysed is null', rows=2000)
+    case_list = list()
+    case_list = db_conn.get(StaticUtils.case_table, 'name, doc_id, court, YEAR(DATE), content', 'retry=2 and YEAR(DATE)=2017', rows=1000)
+
     #print(case_list)
     #case_list = db_conn.get(StaticUtils.case_table, 'name, doc_id, court, YEAR(DATE), content',
     #                        'doc_id=\'83801051-e508-462b-9602-a8ff00a65e95\'')
@@ -61,12 +64,12 @@ def analyse_case(db_conn):
     for case_info in case_list:
         case = dict()
         case['name'], case['doc_id'], case['court'], case['year'], case['content'] = case_info
-        #if not case['content'] or len(case['content']) < 100 or "附带民事" in case['content']:
+        db_conn.update(StaticUtils.case_table, 'retry', 3, 'doc_id=\'{}\''.format(case['doc_id']))
         if not case['content'] or len(case['content']) < 100 :
             db_conn.update(StaticUtils.case_table, 'analysed', -1, 'doc_id=\'{}\''.format(case['doc_id']))
-#            print(case['doc_id'])
             continue
-        verdict = VerdictAnalyserv3.VerdictAnalyser(case['content'], case['year'])
+        verdict = VerdictAnalyser.VerdictAnalyser(case['content'], case['year'])
+
         # collect data for case table
         case['court_level'] = verdict.get_court_level(case['court'])
         case['region'] = verdict.get_region(case['court'])
@@ -80,12 +83,13 @@ def analyse_case(db_conn):
                 verdict.get_defendant_info_list())
         except Exception as e:
             print(e)
+
         if not defendant_name_list:
             db_conn.update(StaticUtils.case_table, 'analysed', 0, 'doc_id=\'{}\''.format(case['doc_id']))
             continue
         else:
             db_conn.update(StaticUtils.case_table, 'analysed', len(defendant_name_list), 'doc_id=\'{}\''.format(case['doc_id']))
-        case['defendant'] = []
+        case['defendant'] = list()
         convict_info = verdict.get_defendant_convict_info(defendant_name_list)
         for i in range(len(defendant_name_list)):
             lawyer_list = verdict.get_defendant_lawyer(defendant_info_list[i])
@@ -94,6 +98,7 @@ def analyse_case(db_conn):
             case['defendant'][i]['name'] = defendant_name_list[i]
             case['defendant'][i]['nation'] = verdict.get_defendant_nation(defendant_info_list[i])
             case['defendant'][i]['age'] = verdict.get_defendant_age(defendant_info_list[i])
+            case['defendant'][i]['sex'] = verdict.get_defendant_sex(defendant_info_list[i])
             case['defendant'][i]['education'] = verdict.get_defendant_education(defendant_info_list[i])
             case['defendant'][i]['job'] = verdict.get_defendant_job(defendant_info_list[i])
             case['defendant'][i]['charge'] = verdict.get_defendant_charge(defendant_name_list[i], convict_info)
@@ -109,11 +114,17 @@ def analyse_case(db_conn):
         case_list_out.append(case)
     return case_list_out
 
+
 def main():
     db_sc_cases = DBOperation.MyDatabase('127.0.0.1', 'root', '082666')
+    t0 = time.time()
     cases = analyse_case(db_sc_cases)
+    t1 = time.time()
     update_to_db(db_sc_cases, cases)
+    t2 = time.time()
     db_sc_cases.commit()
+    t3 = time.time()
+    print(t1-t0, t2-t1, t3-t2)
     db_sc_cases.close()
 
 if __name__ == "__main__":

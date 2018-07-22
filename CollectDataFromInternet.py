@@ -111,6 +111,11 @@ def download_case_list_by_upload_period(year, start_date, end_date):
     db_sc_cases.commit()
     db_sc_cases.close()
 
+def get_latest_upload_date():
+    db_sc_cases = DBOperation.MyDatabase('127.0.0.1', 'root', '082666')
+    result = db_sc_cases.get_max_record(StaticUtils.case_table, 'upload_date')
+    db_sc_cases.close()
+    return result[0]
 
 def download_new_testcases():
     db_sc_cases = DBOperation.MyDatabase('127.0.0.1', 'root', '082666')
@@ -147,14 +152,18 @@ def download_new_testcases():
 
 def main():
     #download_new_testcases()
+    #print(yesterday)
     #return None
 
     years = ['2016', '2017', '2018']
 
-    start = '2018-07-03'
-    end = '2018-07-16'
-    date_start = datetime.datetime.strptime(start, '%Y-%m-%d')
-    date_end = datetime.datetime.strptime(end, '%Y-%m-%d')
+    #start = '2018-07-18'
+    #end = '2018-07-19'
+    #yesterday = datetime.date.today() - datetime.timedelta(1)
+    date_start = get_latest_upload_date()
+    date_end = datetime.date.today() - datetime.timedelta(1)
+    #date_start = datetime.datetime.strptime(start, '%Y-%m-%d')
+    #date_end = datetime.datetime.strptime(end, '%Y-%m-%d')
     while date_start < date_end:
         print(f"Download case uploaded by "
               f"=================={date_start.year}-{date_start.month}-{date_start.day}=====================")

@@ -212,7 +212,7 @@ class VerdictAnalyser:
             if education.group() == '不识字':
                 return '文盲'
             if education.group() == '专科':
-                return '中专'
+                return '大专'
             if education.group() in ['本科', '研究生'] :
                 return '大学'
             return education.group()
